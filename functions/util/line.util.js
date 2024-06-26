@@ -1,8 +1,6 @@
 const axios = require("axios");
-const NodeCache = require("node-cache");
+const nodeCache = require('./node-cache.util');
 const crypto = require('crypto');
-const cache = new NodeCache({stdTTL: 1800}); // 30 min
-
 /*
 #Get profile
 https://developers.line.biz/en/reference/messaging-api/#get-profile
@@ -13,13 +11,12 @@ You can get the profile information of users who meet one of two conditions:
 - Users who haven't added your LINE Official Account as a friend but have sent a message to your LINE Official Account (except users who have blocked your LINE Official Account)
 */
 exports.getProfile = async (userId) => {
+  
   try {
-
-    let profile = cache.get(userId);
+    let profile = nodeCache.getCache(userId);
     console.log(`[Cache Profile] : `, profile);
 
     if (profile == undefined) {
-
 
       const url = `${process.env.LINE_MESSAGING_API}/profile/${userId}`;
 
@@ -32,12 +29,8 @@ exports.getProfile = async (userId) => {
       });
 
       if (response.status === 200) {
-        console.log(`[getProfile] : ${response.data} `);
-
-        profile = cache.set(userId, response.data);
-        console.log(profile);
-
-
+        console.log(`[getProfile] : ${JSON.stringify(response.data)} `);
+        profile = nodeCache.setCache(userId, response.data);
         profile = response.data;
 
       } else {
@@ -61,7 +54,7 @@ exports.isAnimationLoading = async (userId) => {
     const url = `${process.env.LINE_MESSAGING_API}/chat/loading/start`;
     const response = await axios.post(url, {
       "chatId": `${userId}`,
-      "loadingSeconds": 5 // The default value is 20.
+      "loadingSeconds": 10 // The default value is 20.
       // Number of seconds to display a loading animation. You can specify a any one of 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, or 60.
     }, {
       headers: {
@@ -70,36 +63,6 @@ exports.isAnimationLoading = async (userId) => {
       }
     });
     if (response.status === 202) {
-      return response.data;
-    } else {
-      throw new Error(`Failed to send reply. API responded with status: ${response.status}`);
-    }
-  } catch (error) {
-    console.error('Error sending reply:', error.message);
-    throw error;
-  }
-};
-
-/*
-#Send reply message
-https://developers.line.biz/en/reference/messaging-api/#send-reply-message
-Sends a reply message in response to an event from a user, group chat, or multi-person chat. To send reply messages, you need a reply token which is included in the webhook event object.
-*/
-exports.replyWithLongLived = async (token, payload) => {
-  try {
-    const url = `${process.env.LINE_MESSAGING_API}/message/reply`;
-
-    const response = await axios.post(url, {
-      replyToken: token,
-      messages: payload
-    }, {
-      headers: {
-        'Authorization': `Bearer ${process.env.LINE_MESSAGING_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (response.status === 200) {
       return response.data;
     } else {
       throw new Error(`Failed to send reply. API responded with status: ${response.status}`);
@@ -192,51 +155,4 @@ exports.verifySignature = (originalSignature, body) => {
   }
   return true;
 };
-
-/*
-#Get content
-https://developers.line.biz/en/reference/messaging-api/#get-content
- This domain name is different from that of other endpoints
-The domain name (api-data.line.me) of this endpoint is for sending and receiving large amounts of data in the LINE Platform for Messaging API. This domain name differs from that of other endpoints (api.line.me).
-*/
-exports.getContent = async (message, messageId) => {
-  const url = `${process.env.LINE_DATA_MESSAGING_API}/message/${messageId}/content`;
-  const response = await axios.get(url, {
-    headers: {
-      'Authorization': `Bearer ${process.env.LINE_MESSAGING_ACCESS_TOKEN}`,
-    },
-    responseType: 'arraybuffer',
-  });
-
-  let extension = getExtension(message, message.type)
-  let resObject = {
-    fileName: `${message.id}.${extension}`,
-    binary: response.data
-  }
-  return resObject
-};
-
-
-function getExtension(message, messageType) {
-  let extension = '';
-  switch (messageType) {
-    case "image":
-      extension = 'png';
-      break;
-    case "video":
-      extension = 'mp4';
-      break;
-    case "audio":
-      extension = 'm4a';
-      break;
-    case "file":
-      const regex = /\.([0-9a-z]+)(?:[\?#]|$)/i;
-      const match = regex.exec(message.fileName);
-      extension = match ? match[1] : '';
-      break;
-  }
-
-  return extension
-
-}
 
