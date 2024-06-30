@@ -1,6 +1,7 @@
 const axios = require("axios");
-const nodeCache = require('./node-cache.util');
+const firebase = require('./firebase.util');
 const crypto = require('crypto');
+
 /*
 #Get profile
 https://developers.line.biz/en/reference/messaging-api/#get-profile
@@ -10,13 +11,10 @@ You can get the profile information of users who meet one of two conditions:
 - Users who have added your LINE Official Account as a friend
 - Users who haven't added your LINE Official Account as a friend but have sent a message to your LINE Official Account (except users who have blocked your LINE Official Account)
 */
-exports.getProfile = async (userId) => {
-  
-  try {
-    let profile = nodeCache.getCache(userId);
-    console.log(`[Cache Profile] : `, profile);
 
-    if (profile == undefined) {
+exports.getProfile = async (userId) => {
+
+  try {
 
       const url = `${process.env.LINE_MESSAGING_API}/profile/${userId}`;
 
@@ -29,13 +27,40 @@ exports.getProfile = async (userId) => {
       });
 
       if (response.status === 200) {
-        console.log(`[getProfile] : ${JSON.stringify(response.data)} `);
-        profile = nodeCache.setCache(userId, response.data);
-        profile = response.data;
-
+        console.info(`[Get LINE Profile] : ${JSON.stringify(response.data)} `);
+        return await firebase.upsertUser(userId, response.data)
       } else {
         throw new Error(`Failed to fetch user profile. API responded with status: ${response.status}`);
+
       }
+
+  } catch (error) {
+    console.error('Error fetching user profile:', error.response ? error.response.data : error.message);
+    throw error;
+  }
+};
+exports.getProfile = async (userId) => {
+
+  try {
+
+
+    const url = `${process.env.LINE_MESSAGING_API}/profile/${userId}`;
+
+    const response = await axios.get(url, {
+      headers: {
+        'Authorization': `Bearer ${process.env.LINE_MESSAGING_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      maxBodyLength: Infinity,
+    });
+
+    if (response.status === 200) {
+      console.log(`[getProfile] : ${JSON.stringify(response.data)} `);
+      // await firebase.insertUser(userId, response.data)
+      profile = firebase.insertUser(userId, response.data)
+
+    } else {
+      throw new Error(`Failed to fetch user profile. API responded with status: ${response.status}`);
 
     }
     return profile
@@ -77,13 +102,36 @@ exports.isAnimationLoading = async (userId) => {
 exports.replyWithStateless = async (token, payload) => {
   try {
     const accessToken = await issueStatelessAccessToken();
-    if (!accessToken) {
-      throw new Error('Failed to obtain an access token.');
-    }
 
     const url = `${process.env.LINE_MESSAGING_API}/message/reply`;
     const response = await axios.post(url, {
       replyToken: token,
+      messages: payload
+    }, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.status === 200) {
+      return response.data;
+    } else {
+      throw new Error(`Failed to send reply. API responded with status: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Error in sending stateless reply:', error.message);
+    throw error;
+  }
+};
+/*push messsage with stateless*/
+exports.pushWithStateless = async (userId, payload) => {
+  try {
+    const accessToken = await issueStatelessAccessToken();
+
+    const url = `${process.env.LINE_MESSAGING_API}/message/push`;
+    const response = await axios.post(url, {
+      to: userId,
       messages: payload
     }, {
       headers: {
@@ -155,4 +203,3 @@ exports.verifySignature = (originalSignature, body) => {
   }
   return true;
 };
-
