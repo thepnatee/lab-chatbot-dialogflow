@@ -1,6 +1,6 @@
 {
-  "name": "chatbot-switch-bot-mode",
-  "description": "chatbot-switch-bot-mode by thepntaee",
+  "name": "functions",
+  "description": "Cloud Functions for Firebase",
   "scripts": {
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",

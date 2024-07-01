@@ -57,7 +57,7 @@ exports.getProfile = async (userId) => {
     if (response.status === 200) {
       console.log(`[getProfile] : ${JSON.stringify(response.data)} `);
       // await firebase.insertUser(userId, response.data)
-      profile = firebase.insertUser(userId, response.data)
+      profile = firebase.upsertUser(userId, response.data)
 
     } else {
       throw new Error(`Failed to fetch user profile. API responded with status: ${response.status}`);

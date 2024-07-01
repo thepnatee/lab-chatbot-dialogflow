@@ -11,8 +11,7 @@ const userDb = db.collection("user")
 exports.upsertUser = async (userId, profile) => {
   const currentTimestamp = Date.now();
   const userDocument = await userDb.doc(userId).get()
-
-  if (userDocument.exists) {
+  if (!userDocument.exists) {
     const newUser = {
       userId: profile.userId,
       messagedDateTime: currentTimestamp,
@@ -26,8 +25,6 @@ exports.upsertUser = async (userId, profile) => {
   await userDb.doc(userId).update({
     messagedDateTime: currentTimestamp
   });
-
-
   return userDocument.data();
 }
 

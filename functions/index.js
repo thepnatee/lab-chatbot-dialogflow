@@ -45,6 +45,8 @@ exports.webhook = onRequest(async (request, response) => {
             }
             profile = await line.getProfile(event.source.userId)
 
+            console.log("profile ", profile);
+
             if (profile.isUseChatbot) {
 
                 if (event.message.text === "ติดต่อเจ้าหน้าที่") {
@@ -80,7 +82,7 @@ exports.webhook = onRequest(async (request, response) => {
 
 });
 
-exports.scheduleCheckOpenBot = onRequest(async (_request, response) => {
+exports.schedule = onRequest(async (_request, response) => {
 
     const userList = await firebase.getUsers()
     const currentTimestamp = Date.now();
@@ -93,7 +95,7 @@ exports.scheduleCheckOpenBot = onRequest(async (_request, response) => {
         // If the time exceeds 15 minutes, it will automatically switch to Bot mode.
         if (minutesDiff > 15) {
             await firebase.updateUseChatbot(item.userId, true)
-            await line.isAnimationLoading(item.userId)
+            // await line.isAnimationLoading(item.userId)
             await line.pushWithStateless(item.userId, [{
                 "type": "text",
                 "text": '[เปิดระบบโต้ตอบอัตโนมัติ] ขอบคุณ ที่ให้เจ้าหน้าที่ช่วยเหลือ ท่านสามารถสอบถามข้อมูลเพิ่มเติมได้เลยครับ',
