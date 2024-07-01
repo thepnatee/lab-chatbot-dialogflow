@@ -82,7 +82,12 @@ exports.webhook = onRequest(async (request, response) => {
 
 });
 
-exports.schedule = onRequest(async (_request, response) => {
+exports.schedule = onRequest(async (request, response) => {
+
+
+    if (!request.body.responseTimeChatbot) {
+        return response.status(400).json({message:"Value Object: [responseTimeChatbot] is Found!"});
+      }
 
     const userList = await firebase.getUsers()
     const currentTimestamp = Date.now();
@@ -93,7 +98,7 @@ exports.schedule = onRequest(async (_request, response) => {
         const minutesDiff = Math.floor(diffInMilliseconds / (1000 * 60));
         
         // If the time exceeds 15 minutes, it will automatically switch to Bot mode.
-        if (minutesDiff > 15) {
+        if (minutesDiff > request.body.responseTimeChatbot) {
             await firebase.updateUseChatbot(item.userId, true)
             // await line.isAnimationLoading(item.userId)
             await line.pushWithStateless(item.userId, [{
