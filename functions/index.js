@@ -4,12 +4,8 @@ https://medium.com/firebasethailand/cdda33bbd7dd
 
 */
 
-const {
-    setGlobalOptions
-} = require("firebase-functions/v2");
-const {
-    onRequest
-} = require("firebase-functions/v2/https");
+const { setGlobalOptions} = require("firebase-functions/v2");
+const { onRequest } = require("firebase-functions/v2/https");
 
 setGlobalOptions({
     region: "asia-northeast1",
@@ -84,21 +80,18 @@ exports.webhook = onRequest(async (request, response) => {
 
 });
 
-exports.scheduleCheckOpenBot = onRequest(async (request, response) => {
+exports.scheduleCheckOpenBot = onRequest(async (_request, response) => {
 
     const userList = await firebase.getUsers()
-
-    console.log(userList);
-
-
-    const currentTimestamp = Date.now(); // Get current timestamp in milliseconds
+    const currentTimestamp = Date.now();
 
     for (const item of userList) {
         const messagedTime = item.messagedDateTime;
         const diffInMilliseconds = currentTimestamp - messagedTime;
-        const minutesDiff = Math.floor(diffInMilliseconds / (1000 * 60)); // Convert to minutes and round down
+        const minutesDiff = Math.floor(diffInMilliseconds / (1000 * 60));
         
-        if (minutesDiff > 0) {
+        // If the time exceeds 15 minutes, it will automatically switch to Bot mode.
+        if (minutesDiff > 15) {
             await firebase.updateUseChatbot(item.userId, true)
             await line.isAnimationLoading(item.userId)
             await line.pushWithStateless(item.userId, [{
