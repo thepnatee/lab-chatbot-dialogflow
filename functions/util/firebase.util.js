@@ -21,13 +21,17 @@ exports.upsertUser = async (userId) => {
       messagedDateTime: currentTimestamp,
       isUseChatbot: true,
     }
-    return await userDb.doc(userId).set(newUser)
+    await userDb.doc(userId).set(newUser)
+    return newUser
+
   }
 
-  return await userDb.doc(userId).update({
+  await userDb.doc(userId).update({
     messagedDateTime: currentTimestamp
   });
+  return userDocument.data();
 }
+
 
 /* Update isUseChatbot */
 exports.updateUseChatbot = async (userId, status) => {

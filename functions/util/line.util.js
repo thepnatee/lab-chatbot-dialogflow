@@ -1,5 +1,5 @@
 const axios = require("axios");
-const firebase = require('./firebase.util');
+const nodeCache = require('./nodeCache.js');
 const crypto = require('crypto');
 
 /*
@@ -32,6 +32,7 @@ exports.getProfile = async (userId) => {
 
       if (response.status === 200) {
         console.info(`[Get LINE Profile] : ${JSON.stringify(response.data)} `);
+        nodeCache.setCache(userId, response.data)
         return response.data
       } else {
         throw new Error(`Failed to fetch user profile. API responded with status: ${response.status}`);
@@ -45,37 +46,6 @@ exports.getProfile = async (userId) => {
     throw error;
   }
 };
-exports.getProfile = async (userId) => {
-
-  try {
-
-
-    const url = `${process.env.LINE_MESSAGING_API}/profile/${userId}`;
-
-    const response = await axios.get(url, {
-      headers: {
-        'Authorization': `Bearer ${process.env.LINE_MESSAGING_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      maxBodyLength: Infinity,
-    });
-
-    if (response.status === 200) {
-      console.log(`[getProfile] : ${JSON.stringify(response.data)} `);
-      // await firebase.insertUser(userId, response.data)
-      profile = firebase.upsertUser(userId, response.data)
-
-    } else {
-      throw new Error(`Failed to fetch user profile. API responded with status: ${response.status}`);
-
-    }
-    return profile
-  } catch (error) {
-    console.error('Error fetching user profile:', error.response ? error.response.data : error.message);
-    throw error;
-  }
-};
-
 /*
 #Display a loading animation
 https://developers.line.biz/en/reference/messaging-api/#send-broadcast-message
@@ -168,23 +138,29 @@ exports.pushWithStateless = async (userId, payload) => {
 */
 async function issueStatelessAccessToken() {
   try {
-    const response = await axios.post(process.env.LINE_MESSAGING_OAUTH_ISSUE_TOKENV3, {
-      grant_type: 'client_credentials',
-      client_id: process.env.LINE_MESSAGING_CHANNEL_ID,
-      client_secret: process.env.LINE_MESSAGING_CHANNEL_SECRET
-    }, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      maxBodyLength: Infinity,
-    });
 
-    if (response.status === 200 && response.data && response.data.access_token) {
-      console.log(`[issueStatelessAccessToken] : ${response.data.access_token} `);
-      return response.data.access_token;
-    } else {
-      throw new Error('Failed to obtain access token, check response for details.');
+    let token = nodeCache.getCache(process.env.LINE_MESSAGING_CHANNEL_ID);
+    if (token == undefined) {
+      const response = await axios.post(process.env.LINE_MESSAGING_OAUTH_ISSUE_TOKENV3, {
+        grant_type: 'client_credentials',
+        client_id: process.env.LINE_MESSAGING_CHANNEL_ID,
+        client_secret: process.env.LINE_MESSAGING_CHANNEL_SECRET
+      }, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        maxBodyLength: Infinity,
+      });
+
+      if (response.status === 200 && response.data && response.data.access_token) {
+        console.log(`[issueStatelessAccessToken] : ${response.data.access_token} `);
+        nodeCache.setCache(process.env.LINE_MESSAGING_CHANNEL_ID, response.data.access_token)
+        return response.data.access_token;
+      } else {
+        throw new Error('Failed to obtain access token, check response for details.');
+      }
     }
+    return token;
   } catch (error) {
     console.error('Error issuing token:', error.message);
     throw error;
@@ -208,4 +184,28 @@ exports.verifySignature = (originalSignature, body) => {
     return false;
   }
   return true;
+};
+
+
+exports.pushLineNotify = async (message) => {
+
+  try {
+
+    const data = {
+      message,
+      ...(options.imageThumbnail && { imageThumbnail: options.imageThumbnail }),
+      ...(options.imageFullsize && { imageFullsize: options.imageFullsize }),
+    };
+    const response = await axios.post(process.env.LINE_NOTIFY_API_URL, data, {
+      headers: {
+        'Authorization': `Bearer ${process.env.LINE_NOTIFY_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return response.data; // Return the response data
+  } catch (error) {
+    console.error('Error sending Line notification:', error);
+    throw error; // Re-throw the error for handling
+  }
 };

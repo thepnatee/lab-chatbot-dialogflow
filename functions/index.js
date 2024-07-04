@@ -47,7 +47,7 @@ exports.webhook = onRequest(async (request, response) => {
 
         if (event.type === "follow") {
 
-            profile = await line.getProfile(event.source.userId)
+            const profile = await line.getProfile(event.source.userId)
 
             await line.replyWithStateless(event.replyToken, [{
                 "type": "text",
@@ -82,19 +82,28 @@ exports.webhook = onRequest(async (request, response) => {
         }
         if (event.type === "message" && event.message.type === "text") {
 
+            const user = await firebase.upsertUser(userId)
+            if (user.isUseChatbot) {
 
-            profile = await line.getProfile(event.source.userId)
-            await firebase.upsertUser(userId)
-
-
-            if (profile.isUseChatbot) {
+                
 
                 if (event.message.text === "ติดต่อเจ้าหน้าที่") {
+
+                  
+                
+
                     firebase.updateUseChatbot(event.source.userId, false)
 
+                    const profile = await line.getProfile(event.source.userId)
+                    const imageThumbnail = profile.pictureUrl;
+                    const imageFullsize = profile.pictureUrl;
+                    const response = await pushLineNotify('Your message here', {
+                        imageThumbnail,
+                        imageFullsize,
+                    });
                     await line.replyWithStateless(event.replyToken, [{
                         "type": "text",
-                        "text": 'ปิดระบบตอบกลับอัตโนมัติ ทำการส่งต่อให้เจ้าหน้าที่เรียบร้อย \r\n\r\n\r\nเมื่อการสนทนาเริ่มขึ้น หาก ลูกค้าไม่ตอบกลับนานเกินช่วงเวลา ข้อความจะส่งกลับหา ระบบตอบกลับ อัตโนมัติ',
+                        "text": "ระบบกำลังส่งบทสนทนาของท่านให้เจ้าหน้าที่ เจ้าหน้าที่จะทำการตอบกลับโดยเร็วที่สุด\nเพื่อความรวดเร็วในการให้บริการกรุณาระบุข้อมูลดังนี้ค่ะ :\n- เรื่องที่ต้องการติดต่อ\n- หมายเลขคำสั่งซื้อ\n- ชื่อ เบอร์โทรศัพท์ และ Email ที่ลงทะเบียนไว้กับ NocNoc ค่ะ",
                     }])
 
                     return response.end();
@@ -110,7 +119,7 @@ exports.webhook = onRequest(async (request, response) => {
                     firebase.updateUseChatbot(event.source.userId, true)
                     await line.replyWithStateless(event.replyToken, [{
                         "type": "text",
-                        "text": '[เปิดระบบโต้ตอบอัตโนมัติ] ขอบคุณ ที่ให้เจ้าหน้าที่ช่วยเหลือ ท่านสามารถสอบถามข้อมูลเพิ่มเติมได้เลยครับ',
+                        "text": 'ขอบคุณ ที่ให้เจ้าหน้าที่ช่วยเหลือนะคะ',
                         "sender": {
                             "name": "BOT",
                             "iconUrl": "https://cdn-icons-png.flaticon.com/512/6349/6349320.png"
@@ -169,7 +178,7 @@ exports.schedule = onRequest(async (request, response) => {
             await line.isAnimationLoading(item.userId)
             await line.pushWithStateless(item.userId, [{
                 "type": "text",
-                "text": '[เปิดระบบโต้ตอบอัตโนมัติ] ขอบคุณ ที่ให้เจ้าหน้าที่ช่วยเหลือ ท่านสามารถสอบถามข้อมูลเพิ่มเติมได้เลยครับ',
+                "text": 'ขอบคุณ ที่ให้เจ้าหน้าที่ช่วยเหลือนะคะ',
                 "sender": {
                     "name": "BOT",
                     "iconUrl": "https://cdn-icons-png.flaticon.com/512/6349/6349320.png"
