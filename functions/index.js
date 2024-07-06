@@ -82,74 +82,63 @@ exports.webhook = onRequest(async (request, response) => {
         }
         if (event.type === "message" && event.message.type === "text") {
 
-            const user = await firebase.upsertUser(userId)
-            if (user.isUseChatbot) {
+            await firebase.upsertUser(event.source.userId)
 
-                
 
-                if (event.message.text === "ติดต่อเจ้าหน้าที่") {
 
-                  
-                
+            if (event.message.text === "ติดต่อเจ้าหน้าที่") {
+                const profile = await line.getProfile(event.source.userId)
+                firebase.updateUseChatbot(event.source.userId, false)
+                await line.pushLineNotify(`พบการขอความช่วยเหลือจาก คุณ ${profile.displayName}`);
+                await line.replyWithStateless(event.replyToken, [{
+                    "type": "text",
+                    "text": "ระบบกำลังส่งบทสนทนาของท่านให้เจ้าหน้าที่ เจ้าหน้าที่จะทำการตอบกลับโดยเร็วที่สุด\nเพื่อความรวดเร็วในการให้บริการกรุณาระบุข้อมูลดังนี้ค่ะ :\n- เรื่องที่ต้องการติดต่อ\n- หมายเลขคำสั่งซื้อ\n- ชื่อ เบอร์โทรศัพท์ และ Email ที่ลงทะเบียนไว้กับ xxxx ค่ะ",
+                }])
 
-                    firebase.updateUseChatbot(event.source.userId, false)
+                return response.end();
 
-                    const profile = await line.getProfile(event.source.userId)
-                    const imageThumbnail = profile.pictureUrl;
-                    const imageFullsize = profile.pictureUrl;
-                    const response = await pushLineNotify('Your message here', {
-                        imageThumbnail,
-                        imageFullsize,
-                    });
-                    await line.replyWithStateless(event.replyToken, [{
-                        "type": "text",
-                        "text": "ระบบกำลังส่งบทสนทนาของท่านให้เจ้าหน้าที่ เจ้าหน้าที่จะทำการตอบกลับโดยเร็วที่สุด\nเพื่อความรวดเร็วในการให้บริการกรุณาระบุข้อมูลดังนี้ค่ะ :\n- เรื่องที่ต้องการติดต่อ\n- หมายเลขคำสั่งซื้อ\n- ชื่อ เบอร์โทรศัพท์ และ Email ที่ลงทะเบียนไว้กับ NocNoc ค่ะ",
-                    }])
+            } else if (event.message.text === "done") {
 
-                    return response.end();
-                }
+                firebase.updateUseChatbot(event.source.userId, true)
+                await line.replyWithStateless(event.replyToken, [{
+                    "type": "text",
+                    "text": 'ขอบคุณ ที่ให้เจ้าหน้าที่ช่วยเหลือนะคะ',
+                    "sender": {
+                        "name": "BOT",
+                        "iconUrl": "https://cdn-icons-png.flaticon.com/512/6349/6349320.png"
+                    },
+                    "quickReply": {
+                        "items": [{
+                                "type": "action",
+                                "imageUrl": "https://cdn-icons-png.flaticon.com/512/2339/2339864.png",
+                                "action": {
+                                    "type": "message",
+                                    "label": "สวัสดี",
+                                    "text": "สวัสดี"
+                                }
+                            },
+                            {
+                                "type": "action",
+                                "imageUrl": "https://cdn-icons-png.flaticon.com/512/9136/9136041.png",
+                                "action": {
+                                    "type": "message",
+                                    "label": "ติดต่อเจ้าหน้าที่",
+                                    "text": "ติดต่อเจ้าหน้าที่"
+                                }
+                            }
+                        ]
+                    }
+                }])
 
+                return response.end();
+            } else {
                 // Dialogflow
                 await dialogflow.forwardDialodflow(request)
                 return response.end();
-
-            } else {
-                if (event.message.text === "done") {
-
-                    firebase.updateUseChatbot(event.source.userId, true)
-                    await line.replyWithStateless(event.replyToken, [{
-                        "type": "text",
-                        "text": 'ขอบคุณ ที่ให้เจ้าหน้าที่ช่วยเหลือนะคะ',
-                        "sender": {
-                            "name": "BOT",
-                            "iconUrl": "https://cdn-icons-png.flaticon.com/512/6349/6349320.png"
-                        },
-                        "quickReply": {
-                            "items": [{
-                                    "type": "action",
-                                    "imageUrl": "https://cdn-icons-png.flaticon.com/512/2339/2339864.png",
-                                    "action": {
-                                        "type": "message",
-                                        "label": "สวัสดี",
-                                        "text": "สวัสดี"
-                                    }
-                                },
-                                {
-                                    "type": "action",
-                                    "imageUrl": "https://cdn-icons-png.flaticon.com/512/9136/9136041.png",
-                                    "action": {
-                                        "type": "message",
-                                        "label": "ติดต่อเจ้าหน้าที่",
-                                        "text": "ติดต่อเจ้าหน้าที่"
-                                    }
-                                }
-                            ]
-                        }
-                    }])
-
-                    return response.end();
-                }
             }
+
+
+
         }
     }
     return response.end();
@@ -172,9 +161,9 @@ exports.schedule = onRequest(async (request, response) => {
 
     for (const item of userList) {
         const messagedTime = item.messagedDateTime;
-        const diffInMilliseconds = currentTimestamp - messagedTime;
+        const diffInMilliseconds = Date.now() - messagedTime;
         const minutesDiff = Math.floor(diffInMilliseconds / (1000 * 60));
-
+        console.info("[schedule] minutesDiff : ", minutesDiff);
         // If the time exceeds [xx] minutes, it will automatically switch to Bot mode.
         if (minutesDiff > request.body.responseTimeChatbot) {
             await firebase.updateUseChatbot(item.userId, true)

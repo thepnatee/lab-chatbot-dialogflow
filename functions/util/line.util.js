@@ -188,24 +188,18 @@ exports.verifySignature = (originalSignature, body) => {
 
 
 exports.pushLineNotify = async (message) => {
+  const FormData = require('form-data');
+  let data = new FormData();
+  data.append('message', message);
+  return await axios({
+    method: 'post',
+    maxBodyLength: Infinity,
+    url: `${process.env.LINE_NOTIFY_API_URL}`,
+    headers: {
+      'Authorization': `Bearer ${process.env.LINE_NOTIFY_ACCESS_TOKEN}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    data: data
+  })
 
-  try {
-
-    const data = {
-      message,
-      ...(options.imageThumbnail && { imageThumbnail: options.imageThumbnail }),
-      ...(options.imageFullsize && { imageFullsize: options.imageFullsize }),
-    };
-    const response = await axios.post(process.env.LINE_NOTIFY_API_URL, data, {
-      headers: {
-        'Authorization': `Bearer ${process.env.LINE_NOTIFY_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    return response.data; // Return the response data
-  } catch (error) {
-    console.error('Error sending Line notification:', error);
-    throw error; // Re-throw the error for handling
-  }
 };
