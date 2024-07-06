@@ -158,6 +158,9 @@ exports.webhook = onRequest(async (request, response) => {
 
 exports.schedule = onRequest(async (request, response) => {
 
+    if (request.method !== "POST") {
+        return response.status(200).send("Method Not Allowed");
+    }
 
     if (!request.body.responseTimeChatbot) {
         return response.status(400).json({
