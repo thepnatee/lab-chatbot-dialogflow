@@ -82,22 +82,28 @@ exports.webhook = onRequest(async (request, response) => {
         }
         if (event.type === "message" && event.message.type === "text") {
 
-            await firebase.upsertUser(event.source.userId)
+            const user = await firebase.upsertUser(event.source.userId)
+            if (user) {
+                if (event.message.text === "ติดต่อเจ้าหน้าที่") {
+                    const profile = await line.getProfile(event.source.userId)
+                    firebase.updateUseChatbot(event.source.userId, false)
+                    await line.pushLineNotify(`พบการขอความช่วยเหลือจาก คุณ ${profile.displayName}`);
+                    await line.replyWithStateless(event.replyToken, [{
+                        "type": "text",
+                        "text": "ระบบกำลังส่งบทสนทนาของท่านให้เจ้าหน้าที่ เจ้าหน้าที่จะทำการตอบกลับโดยเร็วที่สุด\nเพื่อความรวดเร็วในการให้บริการกรุณาระบุข้อมูลดังนี้ค่ะ :\n- เรื่องที่ต้องการติดต่อ\n- หมายเลขคำสั่งซื้อ\n- ชื่อ เบอร์โทรศัพท์ และ Email ที่ลงทะเบียนไว้กับ xxxx ค่ะ",
+                    }])
+
+                    return response.end();
+
+                } else {
+                    // Dialogflow
+                    await dialogflow.forwardDialodflow(request)
+                    return response.end();
+                }
+            }
 
 
-
-            if (event.message.text === "ติดต่อเจ้าหน้าที่") {
-                const profile = await line.getProfile(event.source.userId)
-                firebase.updateUseChatbot(event.source.userId, false)
-                await line.pushLineNotify(`พบการขอความช่วยเหลือจาก คุณ ${profile.displayName}`);
-                await line.replyWithStateless(event.replyToken, [{
-                    "type": "text",
-                    "text": "ระบบกำลังส่งบทสนทนาของท่านให้เจ้าหน้าที่ เจ้าหน้าที่จะทำการตอบกลับโดยเร็วที่สุด\nเพื่อความรวดเร็วในการให้บริการกรุณาระบุข้อมูลดังนี้ค่ะ :\n- เรื่องที่ต้องการติดต่อ\n- หมายเลขคำสั่งซื้อ\n- ชื่อ เบอร์โทรศัพท์ และ Email ที่ลงทะเบียนไว้กับ xxxx ค่ะ",
-                }])
-
-                return response.end();
-
-            } else if (event.message.text === "done") {
+            if (event.message.text === "done") {
 
                 firebase.updateUseChatbot(event.source.userId, true)
                 await line.replyWithStateless(event.replyToken, [{
@@ -130,10 +136,6 @@ exports.webhook = onRequest(async (request, response) => {
                     }
                 }])
 
-                return response.end();
-            } else {
-                // Dialogflow
-                await dialogflow.forwardDialodflow(request)
                 return response.end();
             }
 
